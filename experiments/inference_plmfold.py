@@ -29,6 +29,8 @@ def single_chain_inference(fasta_filename: str, output_path: str):
     def make_sequence_features(sequence: str, num_res: int) -> FeatureDict:
         """Constructs a feature dict of sequence features."""
         features = {}
+
+        
         features["aatype"] = np.argmax(
             residue_constants.sequence_to_onehot(
                 sequence=sequence,

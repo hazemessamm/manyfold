@@ -72,9 +72,7 @@ class Protein:
             len(all_chain_ids) == 1
         ), "get_sequence is only supported for single-chain proteins"
         assert np.max(self.aatype) < len(residue_constants.restypes_with_x)
-        return "".join(
-            residue_constants.restypes_with_x[aa_index] for aa_index in self.aatype
-        )
+        return None
 
     @classmethod
     def from_atom37_rep(
@@ -128,7 +126,6 @@ def from_pdb_string(pdb_str: str, chain_id: Optional[str] = None) -> Protein:
             f"Only single model PDBs are supported. Found {len(models)} models."
         )
     model = models[0]
-
     atom_positions = []
     aatype = []
     atom_mask = []

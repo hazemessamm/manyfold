@@ -23,12 +23,17 @@ from typing import Iterable, Iterator, List, Optional, Tuple
 import jax
 import ml_collections
 import numpy as np
-import tensorflow.compat.v1 as tf
+
+from tensorflow import compat
+tf = compat.v1
+
 
 from manyfold.data.parsers import parse_fasta
 from manyfold.model import features
 from manyfold.model.tf import input_pipeline, input_pipeline_plmfold, proteins_dataset
 from manyfold.train.gcp_utils import GCPBucketFilepath
+from transformers import AutoTokenizer
+
 
 
 def _check_tfrecords_pattern(pattern, pattern_name="patter"):
@@ -78,6 +83,7 @@ def get_train_val_filepaths_gcp(
     if type(fasta_str) is bytes:
         fasta_str = fasta_str.decode("utf-8")
     _, all_protein_ids = parse_fasta(fasta_str)
+    
 
     filepaths = [
         GCPBucketFilepath(
@@ -192,6 +198,7 @@ class TFDataloaderParams:
             self.filepaths += [self.filepaths[-1]] * num_reps
 
         filepaths_dataset = tf.data.Dataset.from_tensor_slices(self.filepaths)
+    
         if self.shuffle:
             filepaths_dataset = filepaths_dataset.shuffle(
                 len(self.filepaths), reshuffle_each_iteration=True
@@ -203,6 +210,7 @@ class TFDataloaderParams:
             compression_type=self.compression_type,
             num_parallel_reads=self.num_parallel_reads,
         )
+
         if self.ignore_errors:
             dataset = dataset.apply(tf.data.experimental.ignore_errors())
 
@@ -226,7 +234,7 @@ class TFDataloaderParams:
             num_parallel_calls=self.num_parallel_calls,
             deterministic=self.deterministic,
         )
-
+        
         # Filter chains according to SM 1.2.5
         if self.apply_filters:
             dataset = dataset.filter(_accept_chain)
@@ -244,12 +252,14 @@ class TFDataloaderParams:
             is_training=self.is_training,
             is_validation_pipeline=self.is_validation_pipeline,
         )
+
         dataset = dataset.map(
             process_tensors_from_config,
             num_parallel_calls=self.num_parallel_calls,
             deterministic=self.deterministic,
         )
 
+        # dataset = dataset.map(tokenize)
         # Fetch multiple batches of samples
         dataset = dataset.batch(
             batch_size,
@@ -298,6 +308,7 @@ class TFDataloader(Iterable[features.FeatureDict]):
             self._next_element = self._iterator.get_next()
             self._tf_graph.finalize()
         self._logger.debug("Tensorflow graph has just been finalized")
+        self.tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-base')
 
     def __enter__(self):
         self._session = tf.Session(graph=self._tf_graph)
@@ -318,6 +329,16 @@ class TFDataloader(Iterable[features.FeatureDict]):
 
         while True:
             try:
-                yield self._session.run(self._next_element)
+                out = self._session.run(self._next_element)
+                seqs = list(map(lambda x: x.decode('utf8'), np.squeeze(out['sequence']).tolist()))
+                tokenized_seq = self.tokenizer.batch_encode_plus(seqs, 
+                    is_split_into_words=False,
+                    add_special_tokens=True,
+                    return_tensors='jax',
+                    padding='max_length',
+                    max_length=out['aatype_plm'].shape[-1])['input_ids']
+                out.pop('sequence')
+                out['ankh_plm'] = jax.numpy.expand_dims(tokenized_seq, axis=0)
+                yield out
             except tf.errors.OutOfRangeError:
                 return

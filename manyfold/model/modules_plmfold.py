@@ -25,7 +25,7 @@ import jax.numpy as jnp
 from manyfold.common import residue_constants
 from manyfold.model import common_modules, folding, layer_stack, modules, prng
 from manyfold.model.language_model.esm_jax import esm_jax
-from manyfold.model.language_model.models.models import TransformerLM
+from manyfold.model.language_model.models.models import TransformerLM, AnkhTransformerLM
 
 
 class PLMFold(hk.Module):
@@ -401,16 +401,19 @@ class EmbeddingsAndPLMformer(hk.Module):
         # Slice PLM embeddings to the crop size expected in the PLMformer.
         start_index = batch["residue_index"][0] - batch["residue_index_plm"][0]
         crop_size = len(batch["residue_index"])
+        # crop_size = 1024
 
         plm_embeddings = batch["embeddings"]
+        print("plm_embedding in embedding_and_plm_former class:", plm_embeddings.shape)
         if c.use_weighted_embeddings_for_single_channel:
             embedding_weights = hk.get_parameter(
                 "embedding_weights",
-                shape=(plm_embeddings.shape[0],),
+                shape=(plm_embeddings.shape[-1],),
                 init=hk.initializers.Constant(1),
             )
             embedding_weights = jax.nn.softmax(embedding_weights)
             plm_embeddings = (embedding_weights[:, None, None] * plm_embeddings).sum(0)
+
 
         plm_embeddings = jax.lax.dynamic_slice_in_dim(
             plm_embeddings,
@@ -473,6 +476,9 @@ class EmbeddingsAndPLMformer(hk.Module):
             dgram = modules.dgram_from_positions(
                 prev_pseudo_beta, **self.config.prev_pos
             )
+
+
+            print("dgram and pair_activations shapes:", dgram.shape, pair_activations.shape)
             pair_activations += common_modules.Linear(
                 c.pair_channel, name="prev_pos_linear"
             )(dgram)
@@ -608,4 +614,48 @@ class PLMEmbed(hk.Module):
         if self.config.return_all_attention_weights:
             batch["plm_attn_weights"] = outs["attn_weights"]
 
+        
+
+        return batch
+
+
+import flax.linen as nn
+from transformers import AutoTokenizer
+
+
+class AnkhPLMEmbed(nn.Module):
+    """Extract protein language model embeddings for the input sequence."""
+
+    def __init__(self, config):
+        super().__init__()
+        self.transformer_lm = AnkhTransformerLM(config)
+        self.tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-base')
+        self.config = config
+
+
+    def __call__(self, batch):
+        """Builds PLMembed module.
+
+        Arguments:
+          batch: Dictionary of batch features.  Required are:
+            'aatype': [N_res_pLM] input sequence as array of amino acid tokens (batch["aatype_plm"]).
+            'seq_mask': [N_res_pLM] binary mask of input (batch["seq_mask_plm"]).
+
+        Returns:
+          batch: Updated dictionary of batch features, containing batch['embeddings'] with shape
+            [N_res_pLM, config.embed_dim]."""
+        sequence = batch['ankh_plm']
+        print("HEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEE: ", sequence.shape)
+
+        # Generate embeddings.
+        outs = self.transformer_lm(
+            sequence,
+            save_embeddings=True,
+            save_attention_weights=self.config.return_all_attention_weights,
+        )
+        if self.config.return_all_attention_weights:
+            batch["plm_attn_weights"] = jax.numpy.expand_dims(outs["attn_weights"])
+
+        batch['embeddings'] = outs['embeddings']
+        batch.pop("ankh_plm")
         return batch

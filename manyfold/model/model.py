@@ -209,7 +209,7 @@ class TrainModel:
         if self.plmfold_mode:
 
             def _preprocess_fn(feat_dict):
-                model = modules_plmfold.PLMEmbed(self.config.language_model)
+                model = modules_plmfold.AnkhPLMEmbed(self.config.language_model)
                 return model(feat_dict)
 
             def _forward_fn(feat_dict):
@@ -223,7 +223,6 @@ class TrainModel:
                 )
 
         else:
-
             def _forward_fn(feat_dict):
                 """
                 Notes on the settings.
@@ -241,16 +240,17 @@ class TrainModel:
                 )
 
         if self.plmfold_mode:
-            _preprocess_fn = hk.transform(_preprocess_fn)
-            plm_model_init = _preprocess_fn.init
-            plm_model_batched = jax.vmap(
-                _preprocess_fn.apply, axis_name="j", in_axes=(None, 0, 0)
-            )
+            # _preprocess_fn = hk.transform(_preprocess_fn)
+            # plm_model_init = _preprocess_fn.init
+            # plm_model_batched = jax.vmap(
+            #     _preprocess_fn.apply, axis_name="j", in_axes=(None, 0, 0)
+            # )
+            plm_model_batched = _preprocess_fn
 
         _forward_fn = hk.transform(_forward_fn)
         fold_model_init = _forward_fn.init
         fold_model_batched = jax.vmap(
-            _forward_fn.apply, axis_name="j", in_axes=(None, 0, 0)
+            _forward_fn.apply, in_axes=(None, 0, 0)
         )
 
         # Set up the loss function
@@ -273,10 +273,16 @@ class TrainModel:
               state: Current training state.
               features: Processed and batched FeatureDict.
             """
-            if self.plmfold_mode:
-                rng, rng_plm = jax.vmap(jax.random.split, out_axes=1)(rng)
-                feats = plm_model_batched(params_plm, rng_plm, feats)
 
+            
+            if self.plmfold_mode:
+                # rng, rng_plm = jax.vmap(jax.random.split, out_axes=1)(rng)
+                # feats = plm_model_batched(params_plm, rng_plm, feats)
+                feats = plm_model_batched(feats)
+                feats['embeddings'] = jnp.expand_dims(feats['embeddings'], axis=0)
+
+
+                
             output, [loss_per_chain] = fold_model_batched(
                 params,
                 rng,
@@ -373,35 +379,14 @@ class TrainModel:
         ) -> TrainingState:
             """Initialise the model parameters and optimizer state."""
             rng = jax.random.PRNGKey(random_seed)
-
-            if self.plmfold_mode:
-                print("Running in plm_mode")
-                if params_plm:
-                    if self.config.language_model.return_all_embeddings:
-                        num_layers = self.config.language_model.model.num_layers
-                    else:
-                        num_layers = 1
-                    num_res = feat["aatype_plm"].shape[-1]
-                    plm_dim = self.config.language_model.model.embed_dim
-
-                    feat["embeddings"] = jnp.zeros(
-                        (1, num_layers + 1, num_res, plm_dim)
-                    )
-                    feat["plm_attn_weights"] = jnp.zeros((1, num_res, num_res))
-
-                    params_plm = {f"plmembed/{k}": v for k, v in params_plm.items()}
-                    print(
-                        f"\trenamed params_plm and created dummy embeddings on {feat['embeddings'].device()}"
-                    )
-                else:
-                    print("Randomly initialising LM", end="...")
-                    rng, init_rng = jax.random.split(rng)
-                    params_plm = plm_model_init(init_rng, feat)
-                    print("done.")
-
-                params_plm = self.get_policy().cast_to_param(params_plm)
-                params_plm = hk.data_structures.to_mutable_dict(params_plm)
-
+            # feat = plm_model_batched(feat)
+            num_res = feat["aatype_plm"].shape[-1]
+            plm_dim = self.config.language_model.model.embed_dim
+            num_embedding_layers = 1 # because we return the last embedding layer
+            feat["embeddings"] = jnp.zeros(
+                (1, num_res, plm_dim)
+            )
+            feat["plm_attn_weights"] = jnp.zeros((1, num_res, num_res))
             print("randomly initialising folding model", end="...")
             rng, init_rng = jax.random.split(rng)
             params = fold_model_init(init_rng, feat)
@@ -468,7 +453,7 @@ class TrainModel:
         def _update_step(
             state,
             feats: features.FeatureDict,
-        ) -> (TrainingState, TrainingMetrics):
+        ) -> Tuple[TrainingState, TrainingMetrics]:
             """Updates the state using some a batch of features."""
             master_rng = state["rng"]
             params = state["params"]
@@ -560,7 +545,7 @@ class TrainModel:
 
     def update_step(
         self, state: TrainingState, feats: features.FeatureDict
-    ) -> (TrainingState, TrainingMetrics):
+    ) -> Tuple[TrainingState, TrainingMetrics]:
         """Updates the state using some a batch of features."""
         return self._update_step(state, feats)
 

@@ -61,6 +61,7 @@ def filter_fasta(
         return len(string) >= min_length and len(string) <= max_length
 
     lst = [[seq, seqid] for seq, seqid in zip(sequences, seq_ids) if condition(seq)]
+    print(lst)
     filtered_sequences, filtered_seq_ids = list(map(list, zip(*lst)))
     return filtered_sequences, filtered_seq_ids
 

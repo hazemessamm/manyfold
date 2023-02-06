@@ -267,6 +267,7 @@ class TransformerLM(hk.Module):
                 self._config.num_layers * self._config.attention_heads
             )
 
+
         # RobertaLMHead
         lm_head_outs = self._lm_head(x)
         logits, embeddings = lm_head_outs["logits"], lm_head_outs["embeddings"]
@@ -276,6 +277,78 @@ class TransformerLM(hk.Module):
         outs[f"embeddings_{self._config.num_layers}"] = embeddings
         # Add logits to the output dictionary
         outs["logits"] = logits
+        return outs  # type: ignore
+
+
+import flax.linen as nn
+from transformers import FlaxT5ForConditionalGeneration, FlaxT5EncoderModel
+import jax.numpy as jnp
+
+
+class AnkhTransformerLM:
+    """
+    Creates a standard language model
+    (following architecture choices made in the ESM1b model from fair).
+    """
+
+    def __init__(self, config):
+        """
+        Initializes the StandardTransformer model
+
+        Args:
+            config (StandardTransformerConfig): dataclass containing model
+                hyperparameters.
+            name (Optional[str]): Name for module (custom will break weight loading).
+        """
+        super().__init__()
+
+        self.model = FlaxT5EncoderModel.from_pretrained('ElnaggarLab/ankh-base', from_pt=True, output_attentions=True)
+        self.config = config
+        if self.config.model_name == 'ankh_base':
+            self.attention_heads = 12
+            self.num_layers = 24
+        elif self.config.model_name == 'ankh_large':
+            self.attention_heads = 16
+            self.num_layers = 24
+        
+
+
+    def __call__(
+        self,
+        tokens: jnp.ndarray,
+        save_embeddings: bool = False,
+        save_attention_weights: bool = False,
+    ) -> Dict[str, jnp.ndarray]:
+        """Compute the embeddings based on the input tokens.
+
+        Args:
+            tokens (jnp.ndarray): Input tokens out of the tokenizer and masking
+                function (if applied). shape '[batch_size, length]'
+            embeddings_layers_to_save (Tuple[int]): Tuple that contain the indices
+                of the layers for which we want to save the embeddings. If the tuple
+                is empty, then no embedding is saved during the pass.
+
+        Returns:
+            Mapping[str, jnp.ndarray]: Dictionary containing the final embeddings and
+                logits.
+        """
+
+        # Prepare outputs dict
+        outs: Dict[str, jnp.array] = {}
+
+        # Compute padding mask
+        padding_mask_tokens = (tokens != 0).astype(tokens.dtype)
+
+        # Compute embeddings
+        outputs = self.model(input_ids=tokens, attention_mask=padding_mask_tokens, train=False)
+        attentions = jnp.concatenate(outputs.attentions, axis=0)
+
+        # Average the attention weights over all heads and layers if needed
+        if save_attention_weights:
+            outs['attn_weights'] = jnp.sum(jnp.sum(attentions, axis=1), axis=0, keepdims=True) / (self.attention_heads*self.num_layers)
+        # Save final embeddings if needed
+        # if self._config.num_layers in embeddings_layers_to_save:
+        outs[f"embeddings"] = outputs.last_hidden_state
         return outs  # type: ignore
 
 

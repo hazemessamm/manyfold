@@ -583,6 +583,7 @@ class Trainer:
                 t_fetch_start = time.time()
                 feat = next(iter(self.train_dataloader))
                 feat = tree.map_structure(lambda x: x[0, 0], feat)
+                feat.pop('ankh_plm', )
 
                 def crop_batch(batch, crop_size):
                     for k in batch:
@@ -593,17 +594,19 @@ class Trainer:
                             batch[k] = batch[k].take(
                                 indices=np.arange(crop_size), axis=res_dim + 1
                             )
-                        except ValueError:
+                        except (ValueError, KeyError):
                             pass
                     return batch
 
                 feat = crop_batch(feat, 2)
+
 
                 self.logger.info(
                     f"fetched (and cropped) first batch in {time.time() - t_fetch_start:.3f}s."
                 )
 
                 self.logger.info("Initialising model parameters with random values.")
+
                 self.state = self._train_model.init(feat, random_seed, params_plm)
 
                 self._init_from_params = False
@@ -680,7 +683,6 @@ class Trainer:
             set_alphafold_policy(self._train_model.use_half_precision)
 
         training_batch_iterator = iter(self.train_dataloader)
-
         while self.step < self.config.train.num_steps:
             # Run periodic validation.
             if (

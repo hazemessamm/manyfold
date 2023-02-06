@@ -16,7 +16,9 @@
 from typing import Dict, Mapping, Optional, Sequence
 
 import numpy as np
-import tensorflow.compat.v1 as tf
+
+from tensorflow import compat
+tf = compat.v1
 
 from manyfold.model.tf import protein_features
 
@@ -48,7 +50,6 @@ def parse_tfexample(
     }
     parsed_features = tf.io.parse_single_example(raw_data, feature_map)
     reshaped_features = parse_reshape_logic(parsed_features, features, key=key)
-
     return reshaped_features
 
 
@@ -152,8 +153,8 @@ def create_tensor_dict(
       features are returned, all other ones are filtered out.
     """
     features_metadata = _make_features_metadata(features)
-    return parse_tfexample(raw_data, features_metadata, key)
-
+    out = parse_tfexample(raw_data, features_metadata, key)
+    return out
 
 def np_to_tensor_dict(
     np_example: Mapping[str, np.ndarray],

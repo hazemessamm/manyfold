@@ -1,10 +1,11 @@
 defaults:
   - shared_config
-  - language_model: config_esm1b_t33_650M_UR50S
+  - language_model: config_ankh_base
 
 language_model:
-  return_all_embeddings: true
-  return_all_attention_weights: true
+  return_all_embeddings: false
+  return_all_attention_weights: false
+  model_name: ankh_base
 
 data:
   common:
@@ -20,7 +21,7 @@ data:
 model:
   embeddings_and_evoformer:
     use_weighted_embeddings_for_single_channel: true
-    use_out_plm_attention_for_pair_init: true # If true, language_model.return_all_attention_weights = True.
+    use_out_plm_attention_for_pair_init: false # If true, language_model.return_all_attention_weights = True.
     evoformer:
       msa_transition: {
         num_intermediate_factor: 2,

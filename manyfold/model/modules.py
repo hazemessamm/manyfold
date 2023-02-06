@@ -2171,7 +2171,6 @@ class SingleTemplateEmbedding(hk.Module):
         template_dgram = template_dgram.astype(dtype)
 
         to_concat = [template_dgram, template_mask_2d[:, :, None]]
-
         aatype = jax.nn.one_hot(batch["template_aatype"], 22, axis=-1, dtype=dtype)
 
         to_concat.append(jnp.tile(aatype[None, :, :], [num_res, 1, 1]))

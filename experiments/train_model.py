@@ -142,8 +142,8 @@ def train_model(cfg: DictConfig) -> None:
     ###
     # Set up datasets.
     ###
-
     _, seq_ids_train = parse_fasta(load_file(fasta_path_train, from_numpy=False))
+
     train_filenames = [
         os.path.join(os.path.join(data_dir_train, seqid), "features_dict.tfrecord")
         for seqid in seq_ids_train
@@ -184,31 +184,32 @@ def train_model(cfg: DictConfig) -> None:
     ###
     # Preload language model if needed.
     ###
+    # if plmfold_mode and args.load_pretrained_language_model:
+    #     plm_config = model_config.language_model
+    #     params_plm = get_model_haiku_params_maybe_gcp(
+    #         model_name=plm_config.model_name,
+    #         data_dir=plm_config.pretrained_model_dir,
+    #     )
+    # else:
+    #     params_plm = None
 
-    if plmfold_mode and args.load_pretrained_language_model:
-        plm_config = model_config.language_model
-        params_plm = get_model_haiku_params_maybe_gcp(
-            model_name=plm_config.model_name,
-            data_dir=plm_config.pretrained_model_dir,
-        )
-    else:
-        params_plm = None
+    model_params = None
+    params_plm = None
 
     ###
     # Load pre-trained model if needed.
     ###
-
-    if args.pretrained_model:
-        if not gcp_utils.is_gcp_path(pretrained_models_dir):
-            assert os.path.isdir(
-                pretrained_models_dir
-            ), f"Directory not found {pretrained_models_dir}"
-        model_params = get_model_haiku_params_maybe_gcp(
-            model_name=args.pretrained_model,
-            data_dir=pretrained_models_dir,
-        )
-    else:
-        model_params = None
+    # if args.pretrained_model:
+    #     if not gcp_utils.is_gcp_path(pretrained_models_dir):
+    #         assert os.path.isdir(
+    #             pretrained_models_dir
+    #         ), f"Directory not found {pretrained_models_dir}"
+    #     model_params = get_model_haiku_params_maybe_gcp(
+    #         model_name=args.pretrained_model,
+    #         data_dir=pretrained_models_dir,
+    #     )
+    # else:
+    #     model_params = None
 
     ###
     # Run training!

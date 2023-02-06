@@ -15,7 +15,8 @@
 """Feature pre-processing input pipeline for pLMFold."""
 from typing import Optional
 
-import tensorflow.compat.v1 as tf
+import tensorflow
+tf = tensorflow.compat.v1
 import tree
 
 from manyfold.model.tf import data_transforms, shape_placeholders
@@ -130,7 +131,8 @@ def process_tensors_from_config(
     is_validation_pipeline: Optional[bool] = False,
 ):
     """Apply filters and maps to an existing dataset, based on the config."""
-
+    
+    sequence = tensors['sequence']
     def wrap_ensemble_fn(data, i):
         """Function to be mapped over the ensemble dimension."""
         d = data.copy()
@@ -157,6 +159,8 @@ def process_tensors_from_config(
         )
     else:
         tensors = tree.map_structure(lambda x: x[None], tensors_0)
+
+    tensors['sequence'] = sequence
     return tensors
 
 
