@@ -280,6 +280,7 @@ class TrainModel:
                 # feats = plm_model_batched(params_plm, rng_plm, feats)
                 feats = plm_model_batched(feats)
                 feats['embeddings'] = jnp.expand_dims(feats['embeddings'], axis=0)
+                print("Debugging feats:", feats['embeddings'])
 
 
                 
