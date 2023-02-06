@@ -338,7 +338,7 @@ class TFDataloader(Iterable[features.FeatureDict]):
                     padding='max_length',
                     max_length=out['aatype_plm'].shape[-1])['input_ids']
                 out.pop('sequence')
-                out['ankh_plm'] = jax.numpy.expand_dims(tokenized_seq, axis=0)
+                out['ankh_plm'] = tokenized_seq
                 yield out
             except tf.errors.OutOfRangeError:
                 return
