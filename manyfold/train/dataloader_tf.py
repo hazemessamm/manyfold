@@ -330,7 +330,7 @@ class TFDataloader(Iterable[features.FeatureDict]):
         while True:
             try:
                 out = self._session.run(self._next_element)
-                seqs = list(map(lambda x: x.decode('utf8'), np.squeeze(out['sequence']).tolist()))
+                seqs = list(map(lambda x: x.decode('utf8'), np.squeeze(out['sequence'], axis=(0, 2)).tolist()))
                 tokenized_seq = self.tokenizer.batch_encode_plus(seqs, 
                     is_split_into_words=False,
                     add_special_tokens=True,

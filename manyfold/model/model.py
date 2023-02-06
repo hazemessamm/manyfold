@@ -280,8 +280,6 @@ class TrainModel:
                 # feats = plm_model_batched(params_plm, rng_plm, feats)
                 feats = plm_model_batched(feats)
                 feats['embeddings'] = jnp.expand_dims(feats['embeddings'], axis=1)
-
-
                 
             output, [loss_per_chain] = fold_model_batched(
                 params,
