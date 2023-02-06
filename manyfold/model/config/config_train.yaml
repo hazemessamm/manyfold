@@ -13,7 +13,7 @@ args:
   pretrained_model: null # Name of pretrained model to initialise to (null <--> train new model).
   crop_size: 256
   batch_size: 16 # Effective batch size.
-  max_batch_size_per_device: 2 # Max batch size for each forward/backward per device.
+  max_batch_size_per_device: 1 # Max batch size for each forward/backward per device.
 
   # pLMFold specific args (model_config.model.global_config.plmfold_mode = True)
   load_pretrained_language_model: true
