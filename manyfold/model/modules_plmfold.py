@@ -656,6 +656,6 @@ class AnkhPLMEmbed(nn.Module):
         if self.config.return_all_attention_weights:
             batch["plm_attn_weights"] = jax.numpy.expand_dims(outs["attn_weights"])
 
-        batch['embeddings'] = outs['embeddings']
+        batch['embeddings'] = jnp.squeeze(outs['embeddings'], axis=0)
         batch.pop("ankh_plm")
         return batch
