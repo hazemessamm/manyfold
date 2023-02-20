@@ -8,7 +8,7 @@ args:
   fasta_path_train: 'datasets/sequences_train.fasta' # Path to fasta file containing all input sequences for training.
   fasta_path_val: 'datasets/sequences_cameo.fasta' # Path to fasta file containing all input sequences for validation.
   checkpoint_dir: 'experiments/checkpoints/plmfold' # Checkpoint directory.
-  continue_from_last_checkpoint: false # Continue from last checkpoint.
+  continue_from_last_checkpoint: true # Continue from last checkpoint.
   pretrained_models_dir: 'params/esm' # Directory for the pretrained models.
   pretrained_model: null # Name of pretrained model to initialise to (null <--> train new model).
   crop_size: 256

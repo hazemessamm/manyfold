@@ -441,9 +441,6 @@ class Trainer:
             with open(checkpoint_path, "rb") as f:
                 checkpoint = pickle.load(f)
 
-        if self.params_plm:
-            # Restore pLM parameters.
-            checkpoint["state"]["params_plm"] = self.params_plm
 
         self.state = self._train_model.to_distributed_state(
             checkpoint["state"], jax.local_devices()
@@ -583,7 +580,7 @@ class Trainer:
                 t_fetch_start = time.time()
                 feat = next(iter(self.train_dataloader))
                 feat = tree.map_structure(lambda x: x[0, 0], feat)
-                feat.pop('ankh_plm', )
+                feat.pop('ankh_plm')
 
                 def crop_batch(batch, crop_size):
                     for k in batch:
