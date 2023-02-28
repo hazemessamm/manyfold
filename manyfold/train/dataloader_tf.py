@@ -308,7 +308,11 @@ class TFDataloader(Iterable[features.FeatureDict]):
             self._next_element = self._iterator.get_next()
             self._tf_graph.finalize()
         self._logger.debug("Tensorflow graph has just been finalized")
-        self.tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-base')
+
+        if params.config.language_model.model.model_type == 'ankh-base':
+            self.tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-base')
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-large')
 
     def __enter__(self):
         self._session = tf.Session(graph=self._tf_graph)

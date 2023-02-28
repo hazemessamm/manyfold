@@ -1,16 +1,16 @@
 defaults:
   - config
 
-model_name: "Ankh Base"
+model_name: "Ankh Large"
 
 model:
   add_bias_kv: False
-  attention_heads: 12
-  embed_dim: 768
-  ffn_embed_dim: 3072
+  attention_heads: 16
+  embed_dim: 1536
+  ffn_embed_dim: 3840
   num_layers: 24
   alphabet_size: 144
-  model_type: 'ankh-base'
+  model_type: 'ankh-large'
   tokens: [
     '<extra_id_37>',
     '<extra_id_26>', 

@@ -300,16 +300,19 @@ class AnkhTransformerLM:
                 hyperparameters.
             name (Optional[str]): Name for module (custom will break weight loading).
         """
-        super().__init__()
 
-        self.model = FlaxT5EncoderModel.from_pretrained('ElnaggarLab/ankh-base', from_pt=True, output_attentions=True)
+        if config.model.model_type == 'ankh-base':
+            self.model = FlaxT5EncoderModel.from_pretrained('ElnaggarLab/ankh-base', from_pt=True, output_attentions=config.return_all_attention_weights)
+        else:
+            self.model = FlaxT5EncoderModel.from_pretrained('ElnaggarLab/ankh-large', from_pt=True, output_attentions=config.return_all_attention_weights)
+
         self.config = config
-        if self.config.model_name == 'ankh_base':
-            self.attention_heads = 12
-            self.num_layers = 24
-        elif self.config.model_name == 'ankh_large':
-            self.attention_heads = 16
-            self.num_layers = 24
+        if config.model.model_type == 'ankh-base':
+            self.attention_heads = config.model.attention_heads
+            self.num_layers = config.model.num_layers
+        elif config.model.model_type == 'ankh-large':
+            self.attention_heads = config.model.attention_heads
+            self.num_layers = config.model.num_layers
         
 
 

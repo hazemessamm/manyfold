@@ -628,8 +628,8 @@ class AnkhPLMEmbed(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+
         self.transformer_lm = AnkhTransformerLM(config)
-        self.tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-base')
         self.config = config
 
 
@@ -645,7 +645,6 @@ class AnkhPLMEmbed(nn.Module):
           batch: Updated dictionary of batch features, containing batch['embeddings'] with shape
             [N_res_pLM, config.embed_dim]."""
         sequence = batch['ankh_plm']
-        print("HEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEE: ", sequence.shape)
 
         # Generate embeddings.
         outs = self.transformer_lm(
