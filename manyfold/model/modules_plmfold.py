@@ -404,7 +404,7 @@ class EmbeddingsAndPLMformer(hk.Module):
         # crop_size = 1024
 
         plm_embeddings = batch["embeddings"]
-        print("plm_embedding in embedding_and_plm_former class:", plm_embeddings.shape)
+        print("plm_embedding in embedding_and_plm_former class:", plm_embeddings.shape, plm_embeddings.shape[-1])
         if c.use_weighted_embeddings_for_single_channel:
             embedding_weights = hk.get_parameter(
                 "embedding_weights",
@@ -653,7 +653,7 @@ class AnkhPLMEmbed(nn.Module):
             save_attention_weights=self.config.return_all_attention_weights,
         )
         if self.config.return_all_attention_weights:
-            batch["plm_attn_weights"] = jax.numpy.expand_dims(outs["attn_weights"])
+            batch["plm_attn_weights"] = jax.numpy.expand_dims(outs["attn_weights"], axis=1)
 
         batch['embeddings'] = outs['embeddings']
         batch.pop("ankh_plm")

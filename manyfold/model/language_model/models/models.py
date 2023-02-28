@@ -300,7 +300,6 @@ class AnkhTransformerLM:
                 hyperparameters.
             name (Optional[str]): Name for module (custom will break weight loading).
         """
-
         if config.model.model_type == 'ankh-base':
             self.model = FlaxT5EncoderModel.from_pretrained('ElnaggarLab/ankh-base', from_pt=True, output_attentions=config.return_all_attention_weights)
         else:
@@ -344,10 +343,10 @@ class AnkhTransformerLM:
 
         # Compute embeddings
         outputs = self.model(input_ids=tokens, attention_mask=padding_mask_tokens, train=False)
-        attentions = jnp.concatenate(outputs.attentions, axis=0)
 
         # Average the attention weights over all heads and layers if needed
         if save_attention_weights:
+            attentions = jnp.concatenate(outputs.attentions, axis=0)
             outs['attn_weights'] = jnp.sum(jnp.sum(attentions, axis=1), axis=0, keepdims=True) / (self.attention_heads*self.num_layers)
         # Save final embeddings if needed
         # if self._config.num_layers in embeddings_layers_to_save:

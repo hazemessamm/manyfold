@@ -4,7 +4,7 @@ defaults:
 
 language_model:
   return_all_embeddings: false
-  return_all_attention_weights: false
+  return_all_attention_weights: true
   model_name: ankh_base
 
 data:

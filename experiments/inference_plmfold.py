@@ -25,8 +25,9 @@ def single_chain_inference(fasta_filename: str, output_path: str):
     from manyfold.model.tf.data_transforms import make_atom14_masks
     from manyfold.train.utils import get_model_haiku_params_maybe_gcp
     from manyfold.validation.pdb import save_predicted_pdb
+    from transformers import AutoTokenizer
 
-    def make_sequence_features(sequence: str, num_res: int) -> FeatureDict:
+    def make_sequence_features(sequence: str, num_res: int, tokenizer) -> FeatureDict:
         """Constructs a feature dict of sequence features."""
         features = {}
 
@@ -43,6 +44,10 @@ def single_chain_inference(fasta_filename: str, output_path: str):
         features["seq_length"] = np.array([num_res] * num_res, dtype=np.int32)
         features["seq_mask"] = np.ones((num_res,), dtype=np.float32)
         features["aatype_plm"] = features["aatype"]
+
+        sequence_tokenized = tokenizer.encode(sequence, add_special_tokens=True, return_tensors='jax', padding='max_length', max_length=features['aatype'].shape[-1])
+        features['ankh_plm'] = jax.numpy.squeeze(sequence_tokenized)
+
         features["residue_index_plm"] = features["residue_index"]
         features["seq_mask_plm"] = features["seq_mask"]
         features = make_atom14_masks(features)
@@ -64,11 +69,16 @@ def single_chain_inference(fasta_filename: str, output_path: str):
     seq_id = re.split(r"[|\s]", description)[0]
     print(f"\nRunning {seq_id}: {len(sequence)} residues")
 
-    feats = make_sequence_features(sequence, len(sequence))
+    if cfg.model_config.language_model.model.model_type == 'ankh-base':
+        tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-base')
+    else:
+        tokenizer = AutoTokenizer.from_pretrained('ElnaggarLab/ankh-large')
+    
+    feats = make_sequence_features(sequence, len(sequence), tokenizer)
     feats = jax.tree_map(lambda x: x[None], feats)
 
     def _preprocess_fn(feat_dict):
-        model = modules_plmfold.PLMEmbed(cfg.model_config.language_model)
+        model = modules_plmfold.AnkhPLMEmbed(cfg.model_config.language_model)
         return model(feat_dict)
 
     def _forward_fn(batch):
@@ -81,7 +91,8 @@ def single_chain_inference(fasta_filename: str, output_path: str):
             return_representations=False,
         )
 
-    apply_plm = hk.transform(_preprocess_fn).apply
+
+    apply_plm = _preprocess_fn
     apply_folding = hk.transform(_forward_fn).apply
 
     model_params = get_model_haiku_params_maybe_gcp(
@@ -89,14 +100,7 @@ def single_chain_inference(fasta_filename: str, output_path: str):
         data_dir=cfg.args.params_dir,
     )
 
-    plm_config = cfg.model_config.language_model
-    params_plm = get_model_haiku_params_maybe_gcp(
-        model_name=plm_config.model_name,
-        data_dir=plm_config.pretrained_model_dir,
-    )
-    params_plm = {f"plmembed/{k}": v for k, v in params_plm.items()}
-
-    feats = apply_plm(params_plm, jax.random.PRNGKey(seed=0), feats)
+    feats = apply_plm(feats)
     preds = apply_folding(model_params, jax.random.PRNGKey(seed=0), feats)
 
     preds.update(get_confidence_metrics(preds))
